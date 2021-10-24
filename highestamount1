@@ -1,0 +1,36 @@
+#This code is help you find the highest amount of your product from multiple bin of a storage or even a big warehouse with 2000 or more data row. 
+#Then you could use the result to make a business movement such as promotional pack or discount for specific product.
+
+#For this function i used my samplehappycoke.xlsx as dataset
+#1. Make a vector using product name
+y <- c(samplehappycoke$`Product Short Description`)
+
+#2.Find unique value from your data by categorize it using 'unique'
+uy <- unique(y)
+uy
+
+#3. Use 'match' for returns your vector and unique value by its position.
+#this step will help us to change character category into numerical value
+match(y,uy)
+
+#4. Count the frequency for every category using tabulate
+tabulate(match(y, uy))
+
+#5. Use which.max to find numerical category for the highest frequency among your data
+#then you can use unique value and which.max function to return numerical value into it's original 'character'
+which.max(tabulate(match(y, uy)))
+uy[which.max(tabulate(match(y, uy)))]
+
+#6. You could also made a function to shorten the step
+mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+mode(y)
+
+#Notes : 
+#This function will work only if you have single product with highest amount.
+#Which means this function will not work if you have two or more product with highest amount.
+#I will share how to find two or more highest amount product another time. Stay tune ^_^
+
+

@@ -30,4 +30,5 @@ third_place = function(x,y){        #Because we need to add two variable ("names
   final3 = (paste(z, collapse=",")) #Use collapse() to separate the looping result with ","
   print((paste("The third winner is",final3)))
 }
+
 third_place(names,score)

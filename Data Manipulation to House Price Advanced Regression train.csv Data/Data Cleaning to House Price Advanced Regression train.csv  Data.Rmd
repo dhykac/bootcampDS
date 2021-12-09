@@ -1,5 +1,5 @@
 ---
-title: "Data Manipulation to House Price Advanced Regression train.csv  Data"
+title: "Data Cleaning to House Price Advanced Regression train.csv  Data"
 author: "Dhyka"
 date: "12/9/2021"
 output: html_document

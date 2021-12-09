@@ -1,6 +1,7 @@
 # This directory is about how i do Data Cleaning to train.csv of House Price Advanced Regression data.
 
 ## Method i use for this is :
+
 *Missing Value handling to ['LotFrontage'] column
 *Normalization to ['LotArea'] column
 *Transformation & Outlier Handling to ['SalePrice'] column

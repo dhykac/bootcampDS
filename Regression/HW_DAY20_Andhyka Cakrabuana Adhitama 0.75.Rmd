@@ -1,0 +1,239 @@
+---
+title: "HW_DAY20_Andhyka Cakrabuana Adhitama"
+author: "Dhyka"
+date: "12/12/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Preparation
+```{r}
+library(caTools)
+library(psych)
+library(dplyr)
+library(glmnet)
+```
+```{r}
+dfori <- read.csv("https://raw.githubusercontent.com/pararawendy/dibimbing-materials/main/boston.csv")
+head(dfori, 5)
+```
+
+
+# 1. Split data: train - validate - test
+```{r}
+set.seed(123)
+sample <- sample.split(dfori$medv, SplitRatio = .80)
+pre_train <- subset(dfori, sample == TRUE)
+sample_train <- sample.split(pre_train$medv, SplitRatio = .80)
+```
+# Train-Validation-Test
+```{r}
+train <- subset(pre_train, sample_train == TRUE)
+validation <- subset(pre_train, sample_train == FALSE)
+test <-subset(dfori, sample == FALSE)
+```
+
+
+# 2. Draw correlation plot on training data and perform feature selection on highly correlated features
+```{r, fig.width=20} 
+pairs.panels(train, 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE ) # show correlation ellipses
+```
+
+# Drop correlated columns
+```{r, fig.width=20}
+# From the plot above, we know that :
+# nox, age, dis highly correlated each other despite of the +- value (0.73,-0.78,-0,76) so i decide to go for nox which correlation with target is the highest, and drop age & dis columns
+# rad & tax are highly correlated each other (0,9), so i decide to go with tax (-0.53) and drop rad (-0.45)
+# After that we could see that nox and indus highly correlated each other (0.76), so i decide to take down nox (-0.48) and go for indus (-0.54)
+# Note : treshold: absolute(corr)>0.75
+drop_cols <- c('age','dis','rad', 'nox')
+
+train <- train %>% select(-drop_cols)
+validation <- validation %>% select(-drop_cols)
+test <- test %>% select(-drop_cols)
+pairs.panels(train, 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE ) # show correlation ellipses
+```
+
+
+# 3. Fit models on training data (lambdas = [0.01, 0.1, 1, 10])
+
+# Feature preprocessing
+```{r}
+x <- model.matrix(medv ~ ., train)[,-1]
+y <- train$medv
+```
+
+# Ridge Regression
+```{r}
+#lambda 0.01
+ridge_reg_pointzeroone <- glmnet(x, y, alpha = 0, lambda = 0.01)
+coef(ridge_reg_pointzeroone)
+```
+```{r}
+#lambda 0.1
+ridge_reg_pointone <- glmnet(x, y, alpha = 0, lambda = 0.1)
+coef(ridge_reg_pointone)
+```
+```{r}
+#lambda 1
+ridge_reg_one <- glmnet(x, y, alpha = 0, lambda = 1)
+coef(ridge_reg_one)
+```
+```{r}
+#lambda 10
+ridge_reg_ten <- glmnet(x, y, alpha = 0, lambda = 10)
+coef(ridge_reg_ten)
+```
+
+# Lasso Regression
+```{r}
+#lambda 0.01
+lasso_reg_pointzeroone <- glmnet(x, y, alpha = 1, lambda = 0.01)
+coef(lasso_reg_pointzeroone)
+```
+```{r}
+#lambda 0.1
+lasso_reg_pointone <- glmnet(x, y, alpha = 1, lambda = 0.1)
+coef(lasso_reg_pointone) 
+```
+```{r}
+#lambda 1
+lasso_reg_one <- glmnet(x, y, alpha = 1, lambda = 1)
+coef(lasso_reg_one)
+```
+```{r}
+#lambda 10
+lasso_reg_ten <- glmnet(x, y, alpha = 1, lambda = 10)
+coef(lasso_reg_ten)
+```
+
+
+
+# 4. Choose best lambda from validation set
+
+# Features
+```{r}
+x_validation <- model.matrix(medv ~., validation)[,-1]
+y_validation <- validation$medv
+```
+
+# Ridge regression (using RMSE)
+```{r}
+RMSE_ridge_pointzeroone <- sqrt(mean((y_validation - predict(ridge_reg_pointzeroone, x_validation))^2))
+RMSE_ridge_pointzeroone # 4.680917 -> best
+```
+```{r}
+RMSE_ridge_pointone <- sqrt(mean((y_validation - predict(ridge_reg_pointone, x_validation))^2))
+RMSE_ridge_pointone # 4.681134
+```
+```{r}
+RMSE_ridge_one <- sqrt(mean((y_validation - predict(ridge_reg_one, x_validation))^2))
+RMSE_ridge_one # 4.71096
+```
+```{r}
+RMSE_ridge_ten <- sqrt(mean((y_validation - predict(ridge_reg_ten, x_validation))^2))
+RMSE_ridge_ten # 5.450195
+```
+```{r}
+# callback best lambda (0.01)
+ridge_reg_pointzeroone <- glmnet(x, y, alpha = 0, lambda = 0.01)
+coef(ridge_reg_pointzeroone)
+```
+## Medv = 10.486 - 0.053 crim + 0.002 zn + 0.029 indus + 3.066 chas + 5.089 rm - 0.002 tax - 0.910 ptratio + 0.008 black - 0.458 lstat
+```{r}
+# Interpretation
+# An increase of 1 point in crim, while the other features are kept fixed, is associated with an decrease of 0.053 point in medv
+# An increase of 1 point in zn, while other features are kept fixed, is associated with an increase of 0.002 point in medv
+# An increase of 1 point in indus, while other features are kept fixed, is associated with an increase of 0.028 point in medv
+# An increase of 1 point in chas, while other features are kept fixed, is associated with an increase of 3.066 point in medv
+# An increase of 1 point in rm, while other features are kept fixed, is associated with an increase of 5.089 point in medv
+# An increase of 1 point in tax, while other features are kept fixed, is associated with an decrease of 0.002 point in medv
+# An increase of 1 point in ptratio, while other features are kept fixed, is associated with an decrease of 0.910 point in medv
+# An increase of 1 point in black, while other features are kept fixed, is associated with an increase of 0.008 point in medv
+# An increase of 1 point in lstat, while other features are kept fixed, is associated with an decrease of 0,458 point in medv
+```
+
+# Lasso regressiong (using RMSE)
+```{r}
+RMSE_lasso_pointzeroone <- sqrt(mean((y_validation - predict(lasso_reg_pointzeroone, x_validation))^2))
+RMSE_lasso_pointzeroone # 4.678054
+```
+```{r}
+RMSE_lasso_pointone <- sqrt(mean((y_validation - predict(lasso_reg_pointone, x_validation))^2))
+RMSE_lasso_pointone # 4.670197 -> best
+```
+```{r}
+RMSE_lasso_one <- sqrt(mean((y_validation - predict(lasso_reg_one, x_validation))^2))
+RMSE_lasso_one # 4.937774
+```
+```{r}
+RMSE_lasso_ten <- sqrt(mean((y_validation - predict(lasso_reg_ten, x_validation))^2))
+RMSE_lasso_ten # 9.371755
+```
+```{r}
+# callback best lambda (0.1)
+lasso_reg_pointone <- glmnet(x, y, alpha = 1, lambda = 0.1)
+coef(lasso_reg_pointone) 
+```
+## Medv = 11.021 - 0.050 crim + 2.762 chas + 5 rm - 0.001 tax - 0.895 ptratio + 0.008 black - 0.454 lstat
+```{r}
+# Interpretation
+# An increase of 1 point in crim, while the other features are kept fixed, is associated with an decrease of 0.050 point in medv
+# An increase of 1 point in chas, while other features are kept fixed, is associated with an increase of 2.762 point in medv
+# An increase of 1 point in rm, while other features are kept fixed, is associated with an increase of 5 point in medv
+# An increase of 1 point in tax, while other features are kept fixed, is associated with an decrease of 0.001 point in medv
+# An increase of 1 point in ptratio, while other features are kept fixed, is associated with an decrease of 0.896 point in medv
+# An increase of 1 point in black, while other features are kept fixed, is associated with an increase of 0.008 point in medv
+# An increase of 1 point in lstat, while other features are kept fixed, is associated with an decrease of 0,454 point in medv
+```
+
+# 5. Evaluate the best models on the test data (+interpretation)
+
+# Feature
+```{r}
+x_test <- model.matrix(medv ~., test)[,-1]
+y_test <- test$medv
+```
+
+# Ridge
+```{r}
+RMSE_ridge_best <- sqrt(mean((y_test - predict(ridge_reg_pointzeroone, x_test))^2))
+RMSE_ridge_best
+```
+## The standard deviation of prediction errors is 7.128 i.e. from the regression line, the residuals mostly deviate between +- 7.128
+```{r}
+MAE_ridge_best <- mean(abs(y_test-predict(ridge_reg_pointzeroone, x_test)))
+MAE_ridge_best
+```
+## On average, the prediction deviates the true medv by 3.920
+```{r}
+MAPE_ridge_best <- mean(abs((predict(ridge_reg_pointzeroone, x_test) - y_test))/y_test)
+MAPE_ridge_best
+```
+## Moreover, this 3.920 is equivalent to 17.06% deviation relative to the true medv
+
+# Lasso
+```{r}
+RMSE_lasso_best <- sqrt(mean((y_test - predict(lasso_reg_pointone, x_test))^2))
+RMSE_lasso_best
+```
+## The standard deviation of prediction errors is 7.104 i.e. from the regression line, the residuals mostly deviate between +- 7.104
+```{r}
+MAE_lasso_best <- mean(abs(y_test-predict(lasso_reg_pointone, x_test)))
+MAE_lasso_best
+```
+## On average, the prediction deviates the true medv by 3.921
+```{r}
+MAPE_lasso_best <- mean(abs((predict(lasso_reg_pointone, x_test) - y_test))/y_test)
+MAPE_lasso_best
+```
+## Moreover, this 3.92 is equivalent to 17.17% deviation relative to the true medv
